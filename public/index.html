@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Orçamentos</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 40px auto; padding: 0 20px; background-color: #f4f4f4; }
+        h1, h2 { color: #2c3e50; }
+        form { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        fieldset { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        legend { font-weight: bold; font-size: 1.2em; color: #3498db; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; }
+        input[type="text"], input[type="email"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #3498db; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; margin-right: 10px; }
+        button:hover { background-color: #2980b9; }
+        #addItemBtn { background-color: #2ecc71; }
+        #addItemBtn:hover { background-color: #27ae60; }
+        .item { border: 1px dashed #ccc; padding: 15px; margin-top: 15px; border-radius: 5px; position: relative; }
+        .item .remove-item { position: absolute; top: 5px; right: 10px; background: #e74c3c; color: white; border: none; border-radius: 50%; cursor: pointer; width: 25px; height: 25px; font-weight: bold; }
+        #submitBtn { font-size: 1.2em; }
+        #total { font-weight: bold; font-size: 1.1em; background-color: #f0f0f0; }
+    </style>
+</head>
+<body>
+
+    <h1>Gerador de Orçamentos</h1>
+
+    <form id="quoteForm">
+        <!--<fieldset>
+            <legend>Dados da Empresa</legend>
+            <label for="companyName">Nome da Empresa:</label>
+            <input type="text" id="companyName" value="Vidraçaria Versailles" required>
+            <label for="companyCnpj">CNPJ:</label>
+            <input type="text" id="companyCnpj" value="59292303000178" required>
+            <label for="companyAddress">Endereço:</label>
+            <input type="text" id="companyAddress" value="Rua tocantins N 2310 bairro santo Antonio, Teresina" required>
+            <label for="companyEmail">Email:</label>
+            <input type="email" id="companyEmail" value="versailles.esquadrias@gmail.com" required>
+            <label for="companyCell">Celular:</label>
+            <input type="text" id="companyCell" value="(86) 9 9597-1050" required>
+            <label for="companyPhone">Telefone:</label>
+            <input type="text" id="companyPhone" value="" >
+        </fieldset> -->
+
+        <fieldset>
+            <legend>Dados do Cliente</legend>
+            <label for="clientName">Nome do Cliente:</label>
+            <input type="text" id="clientName" value="" required>
+            <label for="clientAddress">Endereço:</label>
+            <input type="text" id="clientAddress" value=",">
+            <label for="clientPhone">Celular:</label>
+            <input type="text" id="clientPhone" value="(86) 9-" required>
+        </fieldset>
+
+        <fieldset>
+            <legend>Detalhes do Orçamento</legend>
+            <label for="quoteNumber">Número do Orçamento:</label>
+            <input type="number" id="quoteNumber" value="" required>
+            <label for="quoteDate">Data do Orçamento:</label>
+            <input type="date" id="quoteDate" required>
+            <label for="deliveryDate">Previsão de Entrega:</label>
+            <input type="date" id="deliveryDate">
+            <label for="validUntil">Orçamento Válido Até:</label>
+            <input type="date" id="validUntil">
+        </fieldset>
+
+        <fieldset>
+            <legend>Itens do Orçamento</legend>
+            <div id="itemsContainer"></div>
+            <button type="button" id="addItemBtn">Adicionar Item</button>
+        </fieldset>
+        
+        <fieldset>
+            <legend>Total</legend>
+            <label for="total">Valor Total do Orçamento:</label>
+            <input type="number" id="total" step="0.01" readonly value="0.00">
+        </fieldset>
+
+        <button type="submit" id="submitBtn">Gerar PDF</button>
+    </form>
+
+       <template id="itemTemplate">
+        <div class="item">
+            <button type="button" class="remove-item">X</button>
+            <label>Imagem do Item:</label>
+            <select class="item-image"><option value="">Nenhuma</option></select>
+            <label>Título do Item:</label>
+            <input type="text" class="item-title" required>
+            <label>Largura (mm):</label>
+            <input type="number" class="item-width" required>
+            <label>Altura (mm):</label>
+            <input type="number" class="item-height" required>
+            <label>Cor do Vidro:</label>
+            <input type="text" class="item-glass" required>
+            <label>Cor do Alumínio:</label>
+            <input type="text" class="item-aluminum" required>
+            <label>Cor das Ferragens:</label>
+            <input type="text" class="item-hardware" required>
+            <label>Quantidade:</label>
+            <input type="number" class="item-quantity" value="1" required>
+            <label>Valor Total do Item:</label>
+            <input type="number" class="item-total-price" step="0.01" value="0.00" required>
+        </div>
+    </template>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Preenche a data atual
+            document.getElementById('quoteDate').value = new Date().toISOString().split('T')[0];
+
+            const addItemBtn = document.getElementById('addItemBtn');
+            const itemsContainer = document.getElementById('itemsContainer');
+            const itemTemplate = document.getElementById('itemTemplate');
+            const totalInput = document.getElementById('total');
+            const quoteForm = document.getElementById('quoteForm');
+            
+            let availableImages = [];
+            try {
+                const response = await fetch('/api/images');
+                if (response.ok) {
+                    availableImages = await response.json();
+                } else {
+                    console.error('Falha ao buscar imagens do servidor.');
+                }
+            } catch (error) {
+                console.error('Erro de conexão ao buscar imagens:', error);
+            }
+
+            function updateTotal() {
+                let currentTotal = 0;
+                const items = document.querySelectorAll('.item');
+                items.forEach(item => {
+                    const priceInput = item.querySelector('.item-total-price');
+                    currentTotal += parseFloat(priceInput.value) || 0;
+                });
+                totalInput.value = currentTotal.toFixed(2);
+            }
+
+            function addNewItem() {
+                const clone = itemTemplate.content.cloneNode(true);
+                const imageSelect = clone.querySelector('.item-image');
+                availableImages.forEach(imageName => {
+                    const option = document.createElement('option');
+                    option.value = imageName;
+                    option.textContent = imageName;
+                    imageSelect.appendChild(option);
+                });
+                itemsContainer.appendChild(clone);
+            }
+
+            addItemBtn.addEventListener('click', addNewItem);
+            
+            itemsContainer.addEventListener('input', (event) => {
+                if (event.target.classList.contains('item-total-price')) { updateTotal(); }
+            });
+            itemsContainer.addEventListener('click', (event) => {
+                if (event.target.classList.contains('remove-item')) {
+                    event.target.closest('.item').remove();
+                    updateTotal();
+                }
+            });
+            
+            addNewItem();
+            
+            quoteForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                updateTotal();
+
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Gerando...';
+
+                const itemsData = [];
+                document.querySelectorAll('.item').forEach(itemEl => {
+                    itemsData.push({
+                        image_filename: itemEl.querySelector('.item-image').value,
+                        title: itemEl.querySelector('.item-title').value,
+                        width: itemEl.querySelector('.item-width').value,
+                        height: itemEl.querySelector('.item-height').value,
+                        glass: itemEl.querySelector('.item-glass').value,
+                        aluminum: itemEl.querySelector('.item-aluminum').value,
+                        hardware: itemEl.querySelector('.item-hardware').value,
+                        quantity: parseInt(itemEl.querySelector('.item-quantity').value),
+                        total_price: parseFloat(itemEl.querySelector('.item-total-price').value)
+                    });
+                });
+
+                const quoteData = {
+                    quote_number: document.getElementById('quoteNumber').value,
+                    date: document.getElementById('quoteDate').value,
+                    delivery_date: document.getElementById('deliveryDate').value,
+                    valid_until: document.getElementById('validUntil').value,
+                    total: parseFloat(totalInput.value),                    
+                    /*company: {
+                        name: document.getElementById('companyName').value,
+                        cnpj: document.getElementById('companyCnpj').value,
+                        address: document.getElementById('companyAddress').value,
+                        email: document.getElementById('companyEmail').value,
+                        cell: document.getElementById('companyCell').value,
+                        phone: document.getElementById('companyPhone').value,
+                    },*/
+                    client: {
+                        name: document.getElementById('clientName').value,
+                        address: document.getElementById('clientAddress').value,
+                        phone: document.getElementById('clientPhone').value,
+                    },
+                    items: itemsData
+                };
+
+                try {
+                    const response = await fetch('/quotes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(quoteData),
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `orcamento-${quoteData.quote_number}.pdf`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    } else {
+                        alert('Erro ao gerar PDF: ' + await response.text());
+                    }
+                } catch (error) {
+                    alert('Ocorreu um erro de comunicação com o servidor.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Gerar PDF';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
