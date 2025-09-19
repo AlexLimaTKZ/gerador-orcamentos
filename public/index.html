@@ -7,6 +7,7 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 40px auto; padding: 0 20px; background-color: #f4f4f4; }
         h1, h2 { color: #2c3e50; }
+        a { color: #3498db; text-decoration: none; font-weight: bold; }
         form { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         fieldset { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
         legend { font-weight: bold; font-size: 1.2em; color: #3498db; }
@@ -14,6 +15,7 @@
         input[type="text"], input[type="email"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         button { background-color: #3498db; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; margin-right: 10px; }
         button:hover { background-color: #2980b9; }
+        .btn-novo { display: inline-block; background-color: #2ecc71; padding: 10px 15px; margin-bottom: 20px; border-radius: 4px; }
         #addItemBtn { background-color: #2ecc71; }
         #addItemBtn:hover { background-color: #27ae60; }
         .item { border: 1px dashed #ccc; padding: 15px; margin-top: 15px; border-radius: 5px; position: relative; }
@@ -25,9 +27,10 @@
 <body>
 
     <h1>Gerador de Orçamentos</h1>
+    <a href="/lista.html" class="btn-novo">Ver Orçamentos Salvos</a>
 
     <form id="quoteForm">
-        <!--<fieldset>
+        <fieldset>
             <legend>Dados da Empresa</legend>
             <label for="companyName">Nome da Empresa:</label>
             <input type="text" id="companyName" value="Vidraçaria Versailles" required>
@@ -36,19 +39,19 @@
             <label for="companyAddress">Endereço:</label>
             <input type="text" id="companyAddress" value="Rua tocantins N 2310 bairro santo Antonio, Teresina" required>
             <label for="companyEmail">Email:</label>
-            <input type="email" id="companyEmail" value="versailles.esquadrias@gmail.com" required>
+            <input type="email" id="companyEmail" value="Versailles@email.com" required>
             <label for="companyCell">Celular:</label>
-            <input type="text" id="companyCell" value="(86) 9 9597-1050" required>
+            <input type="text" id="companyCell" value="(86) 9 9532-5249" required>
             <label for="companyPhone">Telefone:</label>
-            <input type="text" id="companyPhone" value="" >
-        </fieldset> -->
+            <input type="text" id="companyPhone" value="(86) xxxx-xxxx" required>
+        </fieldset>
 
         <fieldset>
             <legend>Dados do Cliente</legend>
             <label for="clientName">Nome do Cliente:</label>
             <input type="text" id="clientName" value="" required>
             <label for="clientAddress">Endereço:</label>
-            <input type="text" id="clientAddress" value=",">
+            <input type="text" id="clientAddress" value="," required>
             <label for="clientPhone">Celular:</label>
             <input type="text" id="clientPhone" value="(86) 9-" required>
         </fieldset>
@@ -56,7 +59,7 @@
         <fieldset>
             <legend>Detalhes do Orçamento</legend>
             <label for="quoteNumber">Número do Orçamento:</label>
-            <input type="number" id="quoteNumber" value="" required>
+            <input type="number" id="quoteNumber" required>
             <label for="quoteDate">Data do Orçamento:</label>
             <input type="date" id="quoteDate" required>
             <label for="deliveryDate">Previsão de Entrega:</label>
@@ -80,7 +83,7 @@
         <button type="submit" id="submitBtn">Gerar PDF</button>
     </form>
 
-       <template id="itemTemplate">
+    <template id="itemTemplate">
         <div class="item">
             <button type="button" class="remove-item">X</button>
             <label>Imagem do Item:</label>
@@ -106,8 +109,12 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            // Preenche a data atual
-            document.getElementById('quoteDate').value = new Date().toISOString().split('T')[0];
+            const urlParams = new URLSearchParams(window.location.search);
+            const orcamentoId = urlParams.get('id');
+            const pageTitle = document.querySelector('h1');
+            if (orcamentoId) {
+                pageTitle.textContent = `Editando Orçamento`;
+            }
 
             const addItemBtn = document.getElementById('addItemBtn');
             const itemsContainer = document.getElementById('itemsContainer');
@@ -118,13 +125,9 @@
             let availableImages = [];
             try {
                 const response = await fetch('/api/images');
-                if (response.ok) {
-                    availableImages = await response.json();
-                } else {
-                    console.error('Falha ao buscar imagens do servidor.');
-                }
+                if (response.ok) availableImages = await response.json();
             } catch (error) {
-                console.error('Erro de conexão ao buscar imagens:', error);
+                console.error('Erro ao buscar imagens:', error);
             }
 
             function updateTotal() {
@@ -137,7 +140,7 @@
                 totalInput.value = currentTotal.toFixed(2);
             }
 
-            function addNewItem() {
+            function addNewItem(itemData = null) {
                 const clone = itemTemplate.content.cloneNode(true);
                 const imageSelect = clone.querySelector('.item-image');
                 availableImages.forEach(imageName => {
@@ -146,27 +149,59 @@
                     option.textContent = imageName;
                     imageSelect.appendChild(option);
                 });
+                if (itemData) {
+                    clone.querySelector('.item-image').value = itemData.image_filename || '';
+                    clone.querySelector('.item-title').value = itemData.title || '';
+                    clone.querySelector('.item-width').value = itemData.width || '';
+                    clone.querySelector('.item-height').value = itemData.height || '';
+                    clone.querySelector('.item-glass').value = itemData.glass || '';
+                    clone.querySelector('.item-aluminum').value = itemData.aluminum || '';
+                    clone.querySelector('.item-hardware').value = itemData.hardware || '';
+                    clone.querySelector('.item-quantity').value = itemData.quantity || 1;
+                    clone.querySelector('.item-total-price').value = itemData.total_price || 0.00;
+                }
                 itemsContainer.appendChild(clone);
             }
-
-            addItemBtn.addEventListener('click', addNewItem);
             
-            itemsContainer.addEventListener('input', (event) => {
-                if (event.target.classList.contains('item-total-price')) { updateTotal(); }
-            });
-            itemsContainer.addEventListener('click', (event) => {
-                if (event.target.classList.contains('remove-item')) {
-                    event.target.closest('.item').remove();
+            if (orcamentoId) {
+                try {
+                    const response = await fetch(`/api/orcamentos/${orcamentoId}`);
+                    if (!response.ok) throw new Error('Orçamento não encontrado');
+                    const data = await response.json();
+                    
+                    if (data.quote_number) pageTitle.textContent = `Editando Orçamento Nº ${data.quote_number}`;
+                    
+                    document.getElementById('quoteNumber').value = data.quote_number;
+                    
+                    const quoteDate = new Date(data.date);
+                    document.getElementById('quoteDate').value = new Date(quoteDate.getTime() + quoteDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                    document.getElementById('deliveryDate').value = data.delivery_date ? new Date(data.delivery_date).toISOString().split('T')[0] : '';
+                    document.getElementById('validUntil').value = data.valid_until ? new Date(data.valid_until).toISOString().split('T')[0] : '';
+                    
+                    document.getElementById('clientName').value = data.client.name;
+                    document.getElementById('clientAddress').value = data.client.address;
+                    document.getElementById('clientPhone').value = data.client.phone;
+                    
+                    itemsContainer.innerHTML = '';
+                    data.items.forEach(item => addNewItem(item));
                     updateTotal();
+                } catch (error) {
+                    console.error('Erro ao carregar orçamento para edição:', error);
+                    alert('Não foi possível carregar os dados deste orçamento.');
+                    window.location.href = '/lista.html';
                 }
-            });
+            } else {
+                document.getElementById('quoteDate').value = new Date().toISOString().split('T')[0];
+                addNewItem();
+            }
             
-            addNewItem();
+            addItemBtn.addEventListener('click', () => addNewItem());
+            itemsContainer.addEventListener('input', (event) => { if (event.target.classList.contains('item-total-price')) { updateTotal(); } });
+            itemsContainer.addEventListener('click', (event) => { if (event.target.classList.contains('remove-item')) { event.target.closest('.item').remove(); updateTotal(); } });
             
             quoteForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 updateTotal();
-
                 const submitBtn = document.getElementById('submitBtn');
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'Gerando...';
@@ -191,22 +226,21 @@
                     date: document.getElementById('quoteDate').value,
                     delivery_date: document.getElementById('deliveryDate').value,
                     valid_until: document.getElementById('validUntil').value,
-                    total: parseFloat(totalInput.value),                    
-                    /*company: {
-                        name: document.getElementById('companyName').value,
-                        cnpj: document.getElementById('companyCnpj').value,
-                        address: document.getElementById('companyAddress').value,
-                        email: document.getElementById('companyEmail').value,
-                        cell: document.getElementById('companyCell').value,
-                        phone: document.getElementById('companyPhone').value,
-                    },*/
-                    client: {
-                        name: document.getElementById('clientName').value,
-                        address: document.getElementById('clientAddress').value,
-                        phone: document.getElementById('clientPhone').value,
-                    },
+                    total: parseFloat(totalInput.value),
+                    company: { /*...*/ }, client: { /*...*/ },
                     items: itemsData
                 };
+                 // Preenche company e client
+                quoteData.company.name = document.getElementById('companyName').value;
+                quoteData.company.cnpj = document.getElementById('companyCnpj').value;
+                quoteData.company.address = document.getElementById('companyAddress').value;
+                quoteData.company.email = document.getElementById('companyEmail').value;
+                quoteData.company.cell = document.getElementById('companyCell').value;
+                quoteData.company.phone = document.getElementById('companyPhone').value;
+                quoteData.client.name = document.getElementById('clientName').value;
+                quoteData.client.address = document.getElementById('clientAddress').value;
+                quoteData.client.phone = document.getElementById('clientPhone').value;
+
 
                 try {
                     const response = await fetch('/quotes', {

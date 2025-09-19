@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Orçamentos</title>
+    <style>
+        body { font-family: sans-serif; max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+        h1 { color: #2c3e50; }
+        a { color: #3498db; text-decoration: none; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f4f4f4; }
+        .btn { padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; margin-right: 5px; }
+        .btn-editar { background-color: #f39c12; }
+        .btn-excluir { background-color: #e74c3c; }
+        .btn-novo { display: inline-block; background-color: #2ecc71; padding: 10px 15px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Orçamentos Salvos</h1>
+    <a href="/index.html" class="btn btn-novo">Criar Novo Orçamento</a>
+    
+    <table id="orcamentos-table">
+        <thead>
+            <tr>
+                <th>Nº Orçamento</th>
+                <th>Cliente</th>
+                <th>Data</th>
+                <th>Total (R$)</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="5">Carregando...</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        async function carregarOrcamentos() {
+            // A linha abaixo precisa encontrar a tabela com id="orcamentos-table" e o tbody dentro dela
+            const tbody = document.querySelector('#orcamentos-table tbody');
+            try {
+                const response = await fetch('/api/orcamentos');
+                if (!response.ok) {
+                    throw new Error('Falha na resposta da rede.');
+                }
+                const orcamentos = await response.json();
+                
+                tbody.innerHTML = ''; // Limpa a tabela
+
+                if (orcamentos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">Nenhum orçamento encontrado.</td></tr>';
+                    return;
+                }
+
+                orcamentos.forEach(orcamento => {
+                    const row = document.createElement('tr');
+                    const formattedDate = new Date(orcamento.date);
+                    // Corrige o problema de fuso horário que pode fazer a data voltar um dia
+                    const userTimezoneOffset = formattedDate.getTimezoneOffset() * 60000;
+                    const correctedDate = new Date(formattedDate.getTime() + userTimezoneOffset);
+
+                    row.innerHTML = `
+                        <td>${orcamento.quote_number}</td>
+                        <td>${orcamento.client_name}</td>
+                        <td>${correctedDate.toLocaleDateString('pt-BR')}</td>
+                        <td>${Number(orcamento.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        <td>
+                            <button class="btn btn-editar" onclick="editarOrcamento(${orcamento.id})">Editar</button>
+                            <button class="btn btn-excluir" onclick="excluirOrcamento(${orcamento.id}, '${orcamento.quote_number}')">Excluir</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar orçamentos:', error);
+                tbody.innerHTML = '<tr><td colspan="5">Falha ao carregar orçamentos. Verifique o console.</td></tr>';
+            }
+        }
+
+        function editarOrcamento(id) {
+            window.location.href = `/index.html?id=${id}`;
+        }
+
+        async function excluirOrcamento(id, quoteNumber) {
+            if (!confirm(`Tem certeza que deseja excluir o orçamento Nº ${quoteNumber}? Esta ação não pode ser desfeita.`)) {
+                return;
+            }
+            try {
+                const response = await fetch(`/api/orcamentos/${id}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    carregarOrcamentos();
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                console.error('Erro ao excluir orçamento:', error);
+                alert('Falha ao excluir o orçamento.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarOrcamentos);
+    </script>
+</body>
+</html>

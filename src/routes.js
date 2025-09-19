@@ -1,87 +1,139 @@
-// src/routes.js
-
 const express = require('express');
 const ejs = require('ejs');
 const path = require('path');
-const { generatePdf } = require('./generator'); // Verifique se o nome do arquivo 'generator.js' está correto
+const { generatePdf } = require('./generator');
+const { knex } = require('./db'); 
 
 const router = express.Router();
 
-// --- FUNÇÕES AUXILIARES ---
+const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const userTimezoneOffset = d.getTimezoneOffset() * 60000;
+    const correctedDate = new Date(d.getTime() + userTimezoneOffset);
+    return correctedDate.toLocaleDateString('pt-BR');
+};
+const formatCurrency = (value) => {
+    return Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
-/**
- * Formata uma string de data (ex: '2025-09-12') para o padrão brasileiro (12/09/2025).
- */
-function formatDate(dateString) {
-    if (!dateString) return '';
-    // Adicionar T00:00:00 para evitar problemas de fuso horário que podem mudar o dia
-    const date = new Date(`${dateString}T00:00:00`);
-    return date.toLocaleDateString('pt-BR');
-}
-
-/**
- * Formata um número para o padrão de moeda brasileira (R$).
- */
-function formatCurrency(number) {
-    if (typeof number !== 'number') {
-        return 'R$ 0,00';
-    }
-    return number.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
-}
-
-
-// --- ROTA PRINCIPAL PARA GERAR O ORÇAMENTO ---
-
+// ROTA PARA CRIAR ORÇAMENTO, SALVAR NO BANCO E GERAR PDF
 router.post('/quotes', async (req, res) => {
+    const quoteData = req.body;
     try {
-        console.log("-> Marcador 1: Rota /quotes iniciada."); // MARCADOR 1
-
-        const quote = req.body; 
-
-        // Trava de segurança e processamento dos itens
-        if (quote.items && Array.isArray(quote.items)) {
-            console.log("-> Marcador 2: Processando itens do orçamento."); // MARCADOR 2
-            quote.items.forEach(item => {
-                if (item.image_filename && item.image_filename.length > 0) {
-                    const imagePath = path.join(__dirname, '..', 'public', 'uploads', item.image_filename);
-                    item.image_filepath = `file:///${imagePath.replace(/\\/g, '/')}`; 
-                }
-            });
-        }
-        
-        // Dados da empresa e cliente
-        const company =  {
-            name: "Versailles Vidraçaria",
-            cnpj: "57.077.012/0001-31",
-            address: "Avenida Joaquim Ribeiro, 1299, Teresina",
-            email: "versailles.esquadrias@gmail.com",
-            cell: "(86) 9 9597-1050",
+        // Usa uma transação para garantir que tudo seja salvo ou nada seja salvo
+        await knex.transaction(async trx => {
+            // Primeiro, insere o cliente. Se já existir um cliente com o mesmo nome, atualiza os dados.
+            const [clientResult] = await trx('clients').insert({
+                name: quoteData.client.name,
+                address: quoteData.client.address,
+                phone: quoteData.client.phone
+            }).returning('id').onConflict('name').merge();
             
-        };
-        const client = quote.client;
+            const clientId = clientResult.id;
 
-        console.log("-> Marcador 3: Renderizando o template HTML com EJS..."); // MARCADOR 3
-        const html = await ejs.renderFile(
-            path.join(__dirname, '..', 'templates', 'orcamento.ejs'), 
-            { quote, company, client, formatDate, formatCurrency }
-        );
+            // Insere o orçamento principal, ligando ao ID do cliente
+            const [quoteResult] = await trx('quotes').insert({
+                quote_number: quoteData.quote_number,
+                client_id: clientId,
+                date: quoteData.date,
+                delivery_date: quoteData.delivery_date || null,
+                valid_until: quoteData.valid_until || null,
+                total: quoteData.total
+            }).returning('id');
 
-        const outPath = path.join(__dirname, '..', 'data', `orcamento-${quote.quote_number}.pdf`);
-        
-        console.log("-> Marcador 4: Chamando a função generatePdf. É AQUI QUE PODE TRAVAR."); // MARCADOR 4
-        await generatePdf(html, outPath);
-        console.log("-> Marcador 5: PDF gerado com sucesso! Enviando o arquivo..."); // MARCADOR 5
-        
-        res.download(outPath, `orcamento-${quote.quote_number}.pdf`, (err) => {
-            if (err) {
-                console.error("Erro ao enviar o arquivo:", err);
+            const savedQuoteId = quoteResult.id;
+
+            // Insere os itens do orçamento, se houver algum
+            if (quoteData.items && quoteData.items.length > 0) {
+                const itemsToInsert = quoteData.items.map(item => ({
+                    quote_id: savedQuoteId,
+                    title: item.title,
+                    image_filename: item.image_filename,
+                    width: item.width,
+                    height: item.height,
+                    glass: item.glass,
+                    aluminum_color: item.aluminum,
+                    hardware_color: item.hardware,
+                    quantity: item.quantity,
+                    total_price: item.total_price
+                }));
+                await trx('quote_items').insert(itemsToInsert);
             }
         });
+        
+        console.log('Orçamento salvo com sucesso no banco de dados.');
+
+        // Se salvou tudo certo, agora gera o PDF
+        const html = await ejs.renderFile(
+            path.join(__dirname, '..', 'templates', 'orcamento.ejs'), 
+            { quote: quoteData, company: quoteData.company, client: quoteData.client, formatDate, formatCurrency }
+        );
+
+        const outPath = path.join(__dirname, '..', 'data', `orcamento-${quoteData.quote_number}.pdf`);
+        await generatePdf(html, outPath);
+        res.download(outPath);
 
     } catch (error) {
-        console.error("ERRO NO BLOCO CATCH:", error);
-        res.status(500).send("Erro ao gerar o orçamento em PDF.");
+        console.error("Erro ao salvar ou gerar orçamento:", error);
+        res.status(500).send("Erro ao processar o orçamento. Verifique o console do servidor.");
     }
 });
+
+// ROTAS DA API PARA LISTAR E EXCLUIR
+router.get('/api/orcamentos', async (req, res) => {
+    try {
+        const orcamentos = await knex('quotes')
+            .join('clients', 'quotes.client_id', '=', 'clients.id')
+            .select('quotes.id', 'quotes.quote_number', 'clients.name as client_name', 'quotes.date', 'quotes.total')
+            .orderBy('quotes.id', 'desc');
+        res.json(orcamentos);
+    } catch (error) {
+        console.error("Erro ao listar orçamentos:", error);
+        res.status(500).json({ error: 'Erro ao buscar orçamentos.' });
+    }
+});
+
+router.get('/api/orcamentos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const quote = await knex('quotes').where('quotes.id', id).first();
+        if (!quote) {
+            return res.status(404).json({ error: 'Orçamento não encontrado.' });
+        }
+        const client = await knex('clients').where('id', quote.client_id).first();
+        const items = await knex('quote_items').where('quote_id', id);
+        const formattedItems = items.map(item => ({
+            image_filename: item.image_filename,
+            title: item.title,
+            width: item.width,
+            height: item.height,
+            glass: item.glass,
+            aluminum: item.aluminum_color,
+            hardware: item.hardware_color,
+            quantity: item.quantity,
+            total_price: item.total_price
+        }));
+        res.json({ ...quote, client, items: formattedItems });
+    } catch (error) {
+        console.error("Erro ao buscar orçamento:", error);
+        res.status(500).json({ error: 'Erro ao buscar orçamento.' });
+    }
+});
+
+router.delete('/api/orcamentos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const numDeleted = await knex('quotes').where('id', id).del();
+        if (numDeleted === 0) {
+            return res.status(404).json({ error: 'Orçamento não encontrado.' });
+        }
+        res.json({ message: 'Orçamento excluído com sucesso.' });
+    } catch (error) {
+        console.error("Erro ao deletar orçamento:", error);
+        res.status(500).json({ error: 'Erro ao deletar orçamento.' });
+    }
+});
+
 
 module.exports = router;
