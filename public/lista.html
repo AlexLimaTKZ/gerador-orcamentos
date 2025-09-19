@@ -3,20 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>Lista de Orçamentos</title>
-    <style>
-        body { font-family: sans-serif; max-width: 1000px; margin: 40px auto; padding: 0 20px; }
-        h1 { color: #2c3e50; }
-        a { color: #3498db; text-decoration: none; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
-        th { background-color: #f4f4f4; }
-        .btn { padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; margin-right: 5px; }
-        .btn-editar { background-color: #f39c12; }
-        .btn-excluir { background-color: #e74c3c; }
-        .btn-novo { display: inline-block; background-color: #2ecc71; padding: 10px 15px; margin-bottom: 20px; }
-    </style>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <div class="theme-switch-wrapper">
+        <label class="theme-switch" for="theme-switch-checkbox">
+            <input type="checkbox" id="theme-switch-checkbox" />
+            <div class="slider round"></div>
+        </label>
+    </div>
     <h1>Orçamentos Salvos</h1>
     <a href="/index.html" class="btn btn-novo">Criar Novo Orçamento</a>
     
@@ -106,5 +101,6 @@
 
         document.addEventListener('DOMContentLoaded', carregarOrcamentos);
     </script>
+    <script src="/js/theme.js"></script>
 </body>
 </html>

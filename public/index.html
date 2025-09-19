@@ -4,46 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerador de Orçamentos</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 40px auto; padding: 0 20px; background-color: #f4f4f4; }
-        h1, h2 { color: #2c3e50; }
-        a { color: #3498db; text-decoration: none; font-weight: bold; }
-        form { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        fieldset { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        legend { font-weight: bold; font-size: 1.2em; color: #3498db; }
-        label { display: block; margin-bottom: 5px; font-weight: 600; }
-        input[type="text"], input[type="email"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { background-color: #3498db; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; margin-right: 10px; }
-        button:hover { background-color: #2980b9; }
-        .btn-novo { display: inline-block; background-color: #2ecc71; padding: 10px 15px; margin-bottom: 20px; border-radius: 4px; }
-        #addItemBtn { background-color: #2ecc71; }
-        #addItemBtn:hover { background-color: #27ae60; }
-        .item { border: 1px dashed #ccc; padding: 15px; margin-top: 15px; border-radius: 5px; position: relative; }
-        .item .remove-item { position: absolute; top: 5px; right: 10px; background: #e74c3c; color: white; border: none; border-radius: 50%; cursor: pointer; width: 25px; height: 25px; font-weight: bold; }
-        #submitBtn { font-size: 1.2em; }
-        #total { font-weight: bold; font-size: 1.1em; background-color: #f0f0f0; }
-    </style>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <div class="theme-switch-wrapper">
+        <label class="theme-switch" for="theme-switch-checkbox">
+            <input type="checkbox" id="theme-switch-checkbox" />
+            <div class="slider round"></div>
+        </label>
+    </div>
 
     <h1>Gerador de Orçamentos</h1>
     <a href="/lista.html" class="btn-novo">Ver Orçamentos Salvos</a>
 
     <form id="quoteForm">
-        <fieldset>
+        <fieldset style="display: none;">
             <legend>Dados da Empresa</legend>
             <label for="companyName">Nome da Empresa:</label>
-            <input type="text" id="companyName" value="Vidraçaria Versailles" required>
+            <input type="text" id="companyName" value="versailles Vidraçaria" required>
             <label for="companyCnpj">CNPJ:</label>
             <input type="text" id="companyCnpj" value="59292303000178" required>
             <label for="companyAddress">Endereço:</label>
             <input type="text" id="companyAddress" value="Rua tocantins N 2310 bairro santo Antonio, Teresina" required>
             <label for="companyEmail">Email:</label>
-            <input type="email" id="companyEmail" value="Versailles@email.com" required>
+            <input type="email" id="companyEmail" value="versailles.esquadrias@gmail.com" required>
             <label for="companyCell">Celular:</label>
-            <input type="text" id="companyCell" value="(86) 9 9532-5249" required>
+            <input type="text" id="companyCell" value="(86) 9 9597-1050" required>
             <label for="companyPhone">Telefone:</label>
-            <input type="text" id="companyPhone" value="(86) xxxx-xxxx" required>
+            <input type="text" id="companyPhone" value="">
         </fieldset>
 
         <fieldset>
@@ -269,5 +257,6 @@
             });
         });
     </script>
+    <script src="/js/theme.js"></script>
 </body>
 </html>
